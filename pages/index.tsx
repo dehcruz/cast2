@@ -419,7 +419,7 @@ const statusBadge: React.CSSProperties = {
   width: 28, height: 28, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800,
 };
 const pillLabel: React.CSSProperties = {
-  background: '#f4f4f4', color: '#111', borderRadius: 12, padding: '6px 12px', minHeight: 28, display: 'flex', alignItems: 'center',
+  background: '#f4f4f4', color: '#111', borderRadius: 12, padding: '6px 12px', minHeight: 28, display: 'flex', alignItems: 'center',fontFamily: '__Nunito_85d4bb',
 };
 
 const winBox: React.CSSProperties = {
