@@ -157,7 +157,7 @@ export default function Home() {
                 )}
               </div>
             )}
-            <div style={{ marginTop: 6, color: '#bbb', fontSize: 13 }}>Dica: <b>clique</b> numa opção para enviar o chute.</div>
+            <div style={{ marginTop: 6, color: '#bbb', fontSize: 13, fontFamily: '__Nunito_85d4bb' }}>Dica: <b>clique</b> numa opção para enviar o chute.</div>
           </div>
         )}
 
