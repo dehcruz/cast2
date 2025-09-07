@@ -265,7 +265,7 @@ function GuessPill({ label, ok }: { label: string; ok: boolean }) {
 /* ====== Estilos base ====== */
 
 const page: React.CSSProperties = { minHeight: '100vh', background: '#000', color: '#fff' };
-const container: React.CSSProperties = { maxWidth: 1200, margin: '40px auto', padding: '0 20px' };
+const container: React.CSSProperties = { maxWidth: 1200, margin: '0', padding: '0 20px' };
 const title: React.CSSProperties = {
   color: '#d9d9d9',
   fontSize: 60,
