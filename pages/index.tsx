@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Bebas_Neue, Oswald } from 'next/font/google';
+
+// importa as fontes do Google
+const bebas = Bebas_Neue({ subsets: ['latin'], weight: '400' }); // só existe um peso
+const oswald = Oswald({ subsets: ['latin'], weight: '400' });
 
 type SearchItem = { id: string; title: string; orig: string; year: number | null };
 type Overlap = Partial<{
@@ -22,7 +27,6 @@ export default function Home() {
   const [won, setWon] = useState(false);
   const [isSmall, setIsSmall] = useState(false);
 
-  // responsividade simples
   useEffect(() => {
     const mq = typeof window !== 'undefined' ? window.matchMedia('(max-width: 480px)') : null;
     const apply = () => setIsSmall(!!mq?.matches);
@@ -31,7 +35,6 @@ export default function Home() {
     return () => mq?.removeEventListener('change', apply);
   }, []);
 
-  // auto-complete
   useEffect(() => {
     const t = setTimeout(async () => {
       if (!query) { setSuggestions([]); return; }
@@ -68,7 +71,6 @@ export default function Home() {
     }
   }
 
-  // agrega créditos em comum (vai “acumulando”)
   const credits = useMemo(() => {
     const addAll = (src?: string[], dest?: Set<string>) => { if (!src || !dest) return; for (const v of src) dest.add(v); };
     const stars = new Set<string>(), directors = new Set<string>(), writers = new Set<string>(),
@@ -94,7 +96,6 @@ export default function Home() {
     };
   }, [guesses]);
 
-  // estilos responsivos (alguns valores mudam se isSmall=true)
   const creditGridColumns = isSmall ? '110px 1fr' : '160px 1fr';
   const creditLabelFont = isSmall ? 16 : 20;
   const creditLineFont = isSmall ? 20 : 26;
@@ -133,7 +134,6 @@ export default function Home() {
         )}
 
         <div style={twoCols}>
-          {/* Coluna ESQUERDA — Créditos estilo cinema */}
           <div style={leftCol}>
             <CreditsPanel
               credits={credits}
@@ -143,8 +143,6 @@ export default function Home() {
               creditLetter={creditLetter}
             />
           </div>
-
-          {/* Coluna DIREITA — lista de chutes */}
           <div style={rightCol}>
             {guesses.map((g, idx) => (
               <GuessPill key={idx} label={`${g.label}${g.year ? ' (' + g.year + ')' : ''}`} ok={!!g.result?.isCorrect} />
@@ -188,7 +186,7 @@ function CreditRow({
 }) {
   return (
     <div style={{ ...creditRow, gridTemplateColumns: creditGridColumns }}>
-      <div style={{ ...creditLabel, fontSize: creditLabelFont }}>{label}</div>
+      <div style={{ ...creditLabel, fontSize: creditLabelFont }} className={oswald.className}>{label}</div>
       <div style={creditLines}>
         {lines.length > 0 ? (
           lines.map((t, i) => (
@@ -199,6 +197,7 @@ function CreditRow({
                 fontSize: creditLineFont,
                 letterSpacing: creditLetter,
               }}
+              className={bebas.className}
             >
               {t}
             </div>
@@ -284,10 +283,9 @@ const twoCols: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1.
 const leftCol: React.CSSProperties = { paddingTop: 8 };
 const rightCol: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 8 };
 
-/* Créditos “cinema” */
 const creditRow: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '160px 1fr', // valor padrão (é sobrescrito dinamicamente)
+  gridTemplateColumns: '160px 1fr',
   columnGap: 24,
   alignItems: 'start',
   marginBottom: 26,
@@ -295,20 +293,17 @@ const creditRow: React.CSSProperties = {
 const creditLabel: React.CSSProperties = {
   textAlign: 'right',
   color: '#d9d9d9',
-  fontSize: 20,                 // sobrescrito dinamicamente
+  fontSize: 20,
   letterSpacing: 0.5,
   paddingTop: 2,
 };
-const creditLines: React.CSSProperties = {
-  display: 'grid',
-  rowGap: 6,
-};
+const creditLines: React.CSSProperties = { display: 'grid', rowGap: 6 };
 const creditLine: React.CSSProperties = {
   fontWeight: 800,
-  fontSize: 26,                 // sobrescrito dinamicamente
+  fontSize: 26,
   lineHeight: 1.05,
   textTransform: 'uppercase',
-  letterSpacing: 1.2,           // sobrescrito dinamicamente
+  letterSpacing: 1.2,
   color: '#fff',
   textShadow: '0 0 0.01px rgba(255,255,255,0.15)',
 };
@@ -318,7 +313,6 @@ const creditPlaceholder: React.CSSProperties = {
   letterSpacing: 0.5,
 };
 
-/* Chutes */
 const pillRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10 };
 const statusBadge: React.CSSProperties = {
   width: 28, height: 28, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800,
