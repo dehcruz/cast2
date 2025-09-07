@@ -333,12 +333,13 @@ const page: React.CSSProperties = { minHeight: '100vh', background: '#000', colo
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0', padding: '0 20px' };
 
 const title: React.CSSProperties = {
-  fontFamily: '"Nunito", sans-serif',
+  
   fontWeight: 700,
-  fontSize: 18,
+  fontSize: 38,
   margin: 0,
   color: '#d9d9d9',
   textAlign: 'center',
+  textTransform: 'uppercase',
 };
 
 const subtitle: React.CSSProperties = {
