@@ -370,7 +370,7 @@ const attemptsBar: React.CSSProperties = {
 
 const input: React.CSSProperties = {
   width: '100%', padding: '14px 16px', border: '1px solid #666', background: '#111', color: '#fff',
-  borderRadius: 12, fontSize: 18, outline: 'none',
+  borderRadius: 12, fontSize: 18, outline: 'none',fontFamily: '__Nunito_85d4bb',
 };
 const dropdown: React.CSSProperties = {
   position: 'absolute', top: 52, left: 0, right: 0, background: '#0d0d0d', border: '1px solid #333',
