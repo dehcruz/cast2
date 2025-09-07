@@ -149,8 +149,8 @@ export default function Home() {
                 {suggestions.length > 0 ? suggestions.map((item) => (
                   <div key={item.id} style={dropdownItem} onClick={() => submitGuess(item)}>
                     <span>{item.title}</span>
-                    {item.title !== item.orig ? <span style={{ marginLeft: 8, opacity: .6 }}>({item.orig})</span> : null}
-                    {item.year ? <span style={{ marginLeft: 6, opacity: .7 }}>• {item.year}</span> : null}
+                    {item.title !== item.orig ? <span style={{ marginLeft: 8, opacity: .6,fontFamily: '__Nunito_85d4bb' }}>({item.orig})</span> : null}
+                    {item.year ? <span style={{ marginLeft: 6, opacity: .7, fontFamily: '__Nunito_85d4bb' }}>• {item.year}</span> : null}
                   </div>
                 )) : (
                   <div style={{ padding: 12, color: '#bbb' }}>Nenhuma opção encontrada.</div>
