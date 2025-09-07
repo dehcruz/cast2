@@ -25,6 +25,12 @@ export default function Home() {
   const [suggestions, setSuggestions] = useState<SearchItem[]>([]);
   const [guesses, setGuesses] = useState<GuessUI[]>([]);
   const [won, setWon] = useState(false);
+
+  // novo: tentativas e modal
+  const [attempts, setAttempts] = useState<number>(0);
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [winningFilm, setWinningFilm] = useState<any>(null);
+
   const [isSmall, setIsSmall] = useState(false);
 
   useEffect(() => {
@@ -62,9 +68,22 @@ export default function Home() {
       });
       if (!res.ok) throw new Error('guess http ' + res.status);
       const data: GuessResult = await res.json();
-      const wrapped: GuessUI = { label: item.title, year: item.year, result: data };
-      setGuesses((g) => [wrapped, ...g]);
-      if (data.isCorrect) setWon(true);
+
+      // construímos o array novo antes de setar (para calcular tentativas corretamente)
+      setGuesses((prev) => {
+        const wrapped: GuessUI = { label: item.title, year: item.year, result: data };
+        const next = [wrapped, ...prev];
+
+        if (data.isCorrect && !won) {
+          // tentativas = chutes anteriores + 1 (este em que acertou)
+          setAttempts(prev.length + 1);
+          setWinningFilm(data.film ?? null);
+          setWon(true);
+          setModalOpen(true);
+        }
+        return next;
+      });
+
     } catch (e) {
       console.error('guess error', e);
       alert('Ocorreu um erro ao enviar o chute. Tente novamente.');
@@ -104,8 +123,15 @@ export default function Home() {
   return (
     <div style={page}>
       <div style={container}>
-        <h1 style={title}>Qual é o filme?</h1>
-        <p style={subtitle}>Chute um filme. Se não for o do dia, mostramos apenas o que ele tem <b>em comum</b>.</p>
+        <h1 style={title} className={bebas.className}>Qual é o filme?</h1>
+        <p style={subtitle} className={oswald.className}>
+          Chute um filme. Se não for o do dia, mostramos apenas o que ele tem <b>em comum</b>.
+        </p>
+
+        {/* contador de tentativas (sempre visível; zera ao recarregar a página) */}
+        <div style={attemptsBar} className={oswald.className}>
+          Tentativas: <span style={{ fontWeight: 900, marginLeft: 6 }}>{guesses.length}</span>
+        </div>
 
         {!won && (
           <div style={{ position: 'relative', marginBottom: 16 }}>
@@ -150,18 +176,55 @@ export default function Home() {
           </div>
         </div>
 
-        {won && guesses.length > 0 && (
-          <div style={winBox}>
-            <b>Você acertou!</b>{' '}
-            {guesses.find(g => g.result?.isCorrect)?.result?.film?.title_pt
-              ?? guesses.find(g => g.result?.isCorrect)?.result?.film?.title}
-            {' '}({guesses.find(g => g.result?.isCorrect)?.result?.film?.release_year})
-          </div>
+        {/* Modal de vitória */}
+        {modalOpen && (
+          <WinModal
+            onClose={() => setModalOpen(false)}
+            attempts={attempts}
+            filmTitle={(winningFilm?.title_pt?.trim?.() ? winningFilm.title_pt : winningFilm?.title) ?? 'Filme'}
+            filmYear={winningFilm?.release_year ?? null}
+          />
         )}
 
         <footer style={footer}>
           Fonte: <code>movies.json</code> com títulos pt-br (IMDb AKAs). Layout: créditos à esquerda, chutes à direita.
         </footer>
+      </div>
+    </div>
+  );
+}
+
+/* ====== Modal ====== */
+
+function WinModal({
+  attempts,
+  filmTitle,
+  filmYear,
+  onClose,
+}: {
+  attempts: number;
+  filmTitle: string;
+  filmYear: number | null;
+  onClose: () => void;
+}) {
+  return (
+    <div style={modalOverlay} role="dialog" aria-modal="true" aria-labelledby="win-title">
+      <div style={modalCard}>
+        <div style={modalHeader}>
+          <span id="win-title" style={{ fontSize: 18, fontWeight: 700 }}>Você acertou! 🎉</span>
+          <button onClick={onClose} style={modalCloseBtn} aria-label="Fechar">×</button>
+        </div>
+        <div style={modalBody}>
+          <div style={modalFilm} className={bebas.className}>
+            {filmTitle}{filmYear ? ` (${filmYear})` : ''}
+          </div>
+          <div style={modalText} className={oswald.className}>
+            Você acertou em <b>{attempts}</b> {attempts === 1 ? 'tentativa' : 'tentativas'}.
+          </div>
+        </div>
+        <div style={modalFooter}>
+          <button onClick={onClose} style={modalPrimaryBtn}>Fechar</button>
+        </div>
       </div>
     </div>
   );
@@ -266,6 +329,7 @@ function GuessPill({ label, ok }: { label: string; ok: boolean }) {
 
 const page: React.CSSProperties = { minHeight: '100vh', background: '#000', color: '#fff' };
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0', padding: '0 20px' };
+
 const title: React.CSSProperties = {
   color: '#d9d9d9',
   fontSize: 60,
@@ -275,8 +339,9 @@ const title: React.CSSProperties = {
   margin: 0,
   textAlign: 'center',
   fontVariant: 'common-ligatures',
-  fontFamily: '"Bebas Neue", sans-serif', // usa a fonte do next/font
+  fontFamily: '"Bebas Neue", sans-serif',
 };
+
 const subtitle: React.CSSProperties = {
   marginTop: 8,
   color: '#d9d9d9',
@@ -287,7 +352,20 @@ const subtitle: React.CSSProperties = {
   margin: 0,
   textAlign: 'center',
   fontVariant: 'common-ligatures',
-  fontFamily: '"Oswald", sans-serif', // fonte do next/font
+  fontFamily: '"Oswald", sans-serif',
+};
+
+const attemptsBar: React.CSSProperties = {
+  display: 'inline-flex',
+  gap: 8,
+  alignItems: 'baseline',
+  color: '#d9d9d9',
+  background: '#121212',
+  border: '1px solid #2a2a2a',
+  borderRadius: 10,
+  padding: '8px 12px',
+  margin: '0 auto 12px',
+  fontSize: 14,
 };
 
 const input: React.CSSProperties = {
@@ -304,6 +382,7 @@ const twoCols: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1.
 const leftCol: React.CSSProperties = { paddingTop: 8 };
 const rightCol: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 8 };
 
+/* Créditos “cinema” */
 const creditRow: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '160px 1fr',
@@ -334,6 +413,7 @@ const creditPlaceholder: React.CSSProperties = {
   letterSpacing: 0.5,
 };
 
+/* Chutes */
 const pillRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10 };
 const statusBadge: React.CSSProperties = {
   width: 28, height: 28, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800,
@@ -346,3 +426,37 @@ const winBox: React.CSSProperties = {
   marginTop: 16, padding: 16, border: '1px solid #c7f3c7', background: '#0f2', color: '#000', borderRadius: 8, fontWeight: 600,
 };
 const footer: React.CSSProperties = { marginTop: 40, color: '#aaa', fontSize: 13 };
+
+/* Modal styles */
+const modalOverlay: React.CSSProperties = {
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  zIndex: 1000,
+};
+const modalCard: React.CSSProperties = {
+  width: 'min(92vw, 560px)',
+  background: '#101010',
+  border: '1px solid #2a2a2a',
+  borderRadius: 14,
+  boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+  color: '#fff',
+};
+const modalHeader: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  padding: '14px 16px', borderBottom: '1px solid #1e1e1e',
+};
+const modalCloseBtn: React.CSSProperties = {
+  background: 'transparent', color: '#aaa', border: 'none', fontSize: 22, cursor: 'pointer', lineHeight: 1,
+};
+const modalBody: React.CSSProperties = { padding: '18px 16px 8px' };
+const modalFilm: React.CSSProperties = {
+  fontSize: 32, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
+};
+const modalText: React.CSSProperties = { color: '#d9d9d9', fontSize: 16 };
+const modalFooter: React.CSSProperties = {
+  display: 'flex', justifyContent: 'flex-end', padding: '10px 16px 16px',
+};
+const modalPrimaryBtn: React.CSSProperties = {
+  background: '#24d366', color: '#000', fontWeight: 800, border: 'none',
+  borderRadius: 10, padding: '10px 14px', cursor: 'pointer',
+};
