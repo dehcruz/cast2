@@ -44,13 +44,26 @@ export function getMovieById(id: string | number): Movie | undefined {
 
 export function filmOfTheDay(dateStr?: string): Movie {
   const all = getAllMovies();
+
+  // pega a data fornecida ou a data atual
   const date = dateStr ? new Date(dateStr) : new Date();
-  const y = date.getFullYear();
-  const m = (date.getMonth()+1).toString().padStart(2,'0');
-  const d = date.getDate().toString().padStart(2,'0');
+
+  // converte para UTC e aplica offset fixo de -3 horas (Brasília)
+  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+  const brasilTime = new Date(utc - 3 * 60 * 60 * 1000);
+
+  const y = brasilTime.getUTCFullYear();
+  const m = String(brasilTime.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(brasilTime.getUTCDate()).padStart(2, '0');
+
   const seedStr = `${y}-${m}-${d}`;
+
+  // gera hash determinístico a partir da string da data
   let hash = 0;
-  for (let i = 0; i < seedStr.length; i++) hash = (hash * 31 + seedStr.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    hash = (hash * 31 + seedStr.charCodeAt(i)) >>> 0;
+  }
+
   const idx = hash % all.length;
   return all[idx];
 }
