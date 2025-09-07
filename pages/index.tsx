@@ -369,11 +369,11 @@ const attemptsBar: React.CSSProperties = {
 };
 
 const input: React.CSSProperties = {
-  width: '100%', padding: '14px 16px', border: '1px solid #666', background: '#111', color: '#fff',
+  width: '100%', padding: '14px 16px', border: '2px solid #fff', background: '#111', color: '#fff',
   borderRadius: 12, fontSize: 18, outline: 'none',fontFamily: '__Nunito_85d4bb',
 };
 const dropdown: React.CSSProperties = {
-  position: 'absolute', top: 52, left: 0, right: 0, background: '#0d0d0d', border: '1px solid #333',
+  position: 'absolute', top: 52, left: 0, right: 0, background: '#0d0d0d', border: '1px solid #666',
   borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.4)', zIndex: 10, maxHeight: 260, overflowY: 'auto',
 };
 const dropdownItem: React.CSSProperties = { padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #161616', display: 'flex', alignItems: 'center' };
