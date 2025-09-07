@@ -131,8 +131,8 @@ export default function Home() {
         </p>
 
         {/* contador de tentativas (sempre visível; zera ao recarregar a página) */}
-        <div style={attemptsBar} className={oswald.className}>
-          Tentativas: <span style={{ fontWeight: 900, marginLeft: 6 }}>{guesses.length}</span>
+        <div style={attemptsBar} className={nunito.className}>
+          Tentativas: <span style={{ fontWeight: 900, marginLeft: 6, fontFamily: '__Nunito_85d4bb' }}>{guesses.length}</span>
         </div>
 
         {!won && (
