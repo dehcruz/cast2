@@ -266,7 +266,17 @@ function GuessPill({ label, ok }: { label: string; ok: boolean }) {
 
 const page: React.CSSProperties = { minHeight: '100vh', background: '#000', color: '#fff' };
 const container: React.CSSProperties = { maxWidth: 1200, margin: '40px auto', padding: '0 20px' };
-const title: React.CSSProperties = { fontSize: 44, fontWeight: 800, margin: 0 };
+const title: React.CSSProperties = {
+  color: '#d9d9d9',
+  fontSize: 60,
+  letterSpacing: 5,
+  padding: 15,
+  fontWeight: 800,
+  margin: 0,
+  textAlign: 'center',
+  fontVariant: 'common-ligatures',
+  fontFamily: '"Bebas Neue", sans-serif', // usa a fonte do next/font
+};
 const subtitle: React.CSSProperties = { color: '#ddd', marginTop: 8 };
 
 const input: React.CSSProperties = {
