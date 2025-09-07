@@ -277,7 +277,18 @@ const title: React.CSSProperties = {
   fontVariant: 'common-ligatures',
   fontFamily: '"Bebas Neue", sans-serif', // usa a fonte do next/font
 };
-const subtitle: React.CSSProperties = { color: '#ddd', marginTop: 8 };
+const subtitle: React.CSSProperties = {
+  marginTop: 8,
+  color: '#d9d9d9',
+  fontSize: 15,
+  letterSpacing: 0.5,
+  padding: 15,
+  fontWeight: 800,
+  margin: 0,
+  textAlign: 'center',
+  fontVariant: 'common-ligatures',
+  fontFamily: '"Oswald", sans-serif', // fonte do next/font
+};
 
 const input: React.CSSProperties = {
   width: '100%', padding: '14px 16px', border: '1px solid #666', background: '#111', color: '#fff',
