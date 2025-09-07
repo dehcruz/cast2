@@ -125,7 +125,7 @@ export default function Home() {
   return (
     <div style={page}>
       <div style={container}>
-        <h1 style={title} className={bebas.className}>Qual é o filme?</h1>
+        <h1 style={title} className={nunito.className}>Qual é o filme?</h1>
         <p style={subtitle} className={oswald.className}>
           Chute um filme. Se não for o do dia, mostramos apenas o que ele tem <b>em comum</b>.
         </p>
