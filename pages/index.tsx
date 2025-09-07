@@ -376,7 +376,7 @@ const dropdown: React.CSSProperties = {
   position: 'absolute', top: 52, left: 0, right: 0, background: '#0d0d0d', border: '1px solid #666',
   borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.4)', zIndex: 10, maxHeight: 260, overflowY: 'auto',
 };
-const dropdownItem: React.CSSProperties = { padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #161616', display: 'flex', alignItems: 'center' };
+const dropdownItem: React.CSSProperties = { padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #161616', display: 'flex', alignItems: 'center', fontFamily: '__Nunito_85d4bb' };
 
 const twoCols: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24, marginTop: 24 };
 const leftCol: React.CSSProperties = { paddingTop: 8 };
