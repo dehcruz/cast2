@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bebas_Neue, Oswald } from 'next/font/google';
+import { Bebas_Neue, Oswald, Nunito } from 'next/font/google';
+
 
 // importa as fontes do Google
 const bebas = Bebas_Neue({ subsets: ['latin'], weight: '400' }); // só existe um peso
 const oswald = Oswald({ subsets: ['latin'], weight: '400' });
+const nunito = Nunito({ subsets: ['latin'], weight: ['700'] });
 
 type SearchItem = { id: string; title: string; orig: string; year: number | null };
 type Overlap = Partial<{
@@ -331,15 +333,12 @@ const page: React.CSSProperties = { minHeight: '100vh', background: '#000', colo
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0', padding: '0 20px' };
 
 const title: React.CSSProperties = {
-  color: '#d9d9d9',
-  fontSize: 60,
-  letterSpacing: 5,
-  padding: 15,
-  fontWeight: 800,
+  fontFamily: '"Nunito", sans-serif',
+  fontWeight: 700,
+  fontSize: 18,
   margin: 0,
+  color: '#d9d9d9',
   textAlign: 'center',
-  fontVariant: 'common-ligatures',
-  fontFamily: '"Bebas Neue", sans-serif',
 };
 
 const subtitle: React.CSSProperties = {
