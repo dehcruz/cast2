@@ -352,7 +352,7 @@ const subtitle: React.CSSProperties = {
   margin: 0,
   textAlign: 'center',
   fontVariant: 'common-ligatures',
-  fontFamily: '"Oswald", sans-serif',
+  fontFamily: '__Nunito_85d4bb',
 };
 
 const attemptsBar: React.CSSProperties = {
