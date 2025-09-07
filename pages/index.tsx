@@ -113,7 +113,7 @@ export default function Home() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-              placeholder="Digite o nome (pt-br ou original) e clique numa opção…"
+              placeholder="Digite o nome do filme e clique numa opção…"
               style={input}
             />
             {(suggestions.length > 0 || query) && (
