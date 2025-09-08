@@ -427,7 +427,7 @@ const attemptsBar: React.CSSProperties = {
 };
 
 const input: React.CSSProperties = {
-  width: '100%', padding: '14px 16px', border: '1px solid '#666', background: '#111', color: '#fff',
+  width: '100%', padding: '14px 16px', border: '1px solid #666', background: '#111', color: '#fff',
   borderRadius: 12, fontSize: 18, outline: 'none',
 };
 const dropdown: React.CSSProperties = {
