@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bebas_Neue, Oswald, Nunito } from 'next/font/google';
 
-
-// importa as fontes do Google
-const bebas = Bebas_Neue({ subsets: ['latin'], weight: '400' }); // só existe um peso
-const oswald = Oswald({ subsets: ['latin'], weight: '400' });
-const nunito = Nunito({ subsets: ['latin'], weight: ['700'] });
+// fontes
+const bebas = Bebas_Neue({ subsets: ['latin'], weight: '400' }); // nomes
+const oswald = Oswald({ subsets: ['latin'], weight: '400' });    // rótulos
+const nunito = Nunito({ subsets: ['latin'], weight: '700' });    // h1
 
 type SearchItem = { id: string; title: string; orig: string; year: number | null };
 type Overlap = Partial<{
@@ -19,7 +18,13 @@ type Overlap = Partial<{
   languages: string[];
   release_year: number;
 }>;
-type GuessResult = { isCorrect: boolean; overlap: Overlap; film?: any };
+type GuessResult = {
+  isCorrect: boolean;
+  overlap: Overlap;
+  film?: any;
+  yearRelation?: 'lt' | 'gt' | 'eq' | null; // novo
+  guessYear?: number | null;                // novo
+};
 type GuessUI = { label: string; year?: number | null; result: GuessResult };
 
 export default function Home() {
@@ -28,10 +33,14 @@ export default function Home() {
   const [guesses, setGuesses] = useState<GuessUI[]>([]);
   const [won, setWon] = useState(false);
 
-  // novo: tentativas e modal
+  // tentativas e modal
   const [attempts, setAttempts] = useState<number>(0);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [winningFilm, setWinningFilm] = useState<any>(null);
+
+  // limites de ano (inferencia)
+  const [yearLower, setYearLower] = useState<number | null>(null); // maior ano < ano do filme
+  const [yearUpper, setYearUpper] = useState<number | null>(null); // menor ano > ano do filme
 
   const [isSmall, setIsSmall] = useState(false);
 
@@ -71,13 +80,24 @@ export default function Home() {
       if (!res.ok) throw new Error('guess http ' + res.status);
       const data: GuessResult = await res.json();
 
-      // construímos o array novo antes de setar (para calcular tentativas corretamente)
       setGuesses((prev) => {
+        // atualizar limites com base em yearRelation e guessYear
+        if (data.yearRelation && typeof data.guessYear === 'number') {
+          if (data.yearRelation === 'lt') {
+            // lower é o maior ano < filme
+            setYearLower((curr) => (curr == null ? data.guessYear! : Math.max(curr, data.guessYear!)));
+          } else if (data.yearRelation === 'gt') {
+            // upper é o menor ano > filme
+            setYearUpper((curr) => (curr == null ? data.guessYear! : Math.min(curr, data.guessYear!)));
+          } else if (data.yearRelation === 'eq') {
+            // acertou o ano: nada especial aqui; o centro mostrará o ano do overlap
+          }
+        }
+
         const wrapped: GuessUI = { label: item.title, year: item.year, result: data };
         const next = [wrapped, ...prev];
 
         if (data.isCorrect && !won) {
-          // tentativas = chutes anteriores + 1 (este em que acertou)
           setAttempts(prev.length + 1);
           setWinningFilm(data.film ?? null);
           setWon(true);
@@ -92,6 +112,7 @@ export default function Home() {
     }
   }
 
+  // agrega créditos em comum
   const credits = useMemo(() => {
     const addAll = (src?: string[], dest?: Set<string>) => { if (!src || !dest) return; for (const v of src) dest.add(v); };
     const stars = new Set<string>(), directors = new Set<string>(), writers = new Set<string>(),
@@ -117,6 +138,11 @@ export default function Home() {
     };
   }, [guesses]);
 
+  // derivar texto do "Ano" com limites
+  const hasExactYear = credits.years.length > 0;
+  const centerYear = hasExactYear ? credits.years[0] : '????';
+  const yearLine = `${yearLower != null ? yearLower : ''}${yearLower != null ? '  >  ' : ''}${centerYear}${yearUpper != null ? '  >  ' : ''}${yearUpper != null ? yearUpper : ''}`;
+
   const creditGridColumns = isSmall ? '110px 1fr' : '160px 1fr';
   const creditLabelFont = isSmall ? 16 : 20;
   const creditLineFont = isSmall ? 20 : 26;
@@ -130,9 +156,8 @@ export default function Home() {
           Chute um filme. Se não for o do dia, mostramos apenas o que ele tem <b>em comum</b>.
         </p>
 
-        {/* contador de tentativas (sempre visível; zera ao recarregar a página) */}
-        <div style={attemptsBar} className={nunito.className}>
-          Tentativas: <span style={{ fontWeight: 900, marginLeft: 6, fontFamily: '__Nunito_85d4bb' }}>{guesses.length}</span>
+        <div style={attemptsBar} className={oswald.className}>
+          Tentativas: <span style={{ fontWeight: 900, marginLeft: 6 }}>{guesses.length}</span>
         </div>
 
         {!won && (
@@ -149,15 +174,15 @@ export default function Home() {
                 {suggestions.length > 0 ? suggestions.map((item) => (
                   <div key={item.id} style={dropdownItem} onClick={() => submitGuess(item)}>
                     <span>{item.title}</span>
-                    {item.title !== item.orig ? <span style={{ marginLeft: 8, opacity: .6,fontFamily: '__Nunito_85d4bb' }}>({item.orig})</span> : null}
-                    {item.year ? <span style={{ marginLeft: 6, opacity: .7, fontFamily: '__Nunito_85d4bb' }}>• {item.year}</span> : null}
+                    {item.title !== item.orig ? <span style={{ marginLeft: 8, opacity: .6 }}>({item.orig})</span> : null}
+                    {item.year ? <span style={{ marginLeft: 6, opacity: .7 }}>• {item.year}</span> : null}
                   </div>
                 )) : (
                   <div style={{ padding: 12, color: '#bbb' }}>Nenhuma opção encontrada.</div>
                 )}
               </div>
             )}
-            <div style={{ marginTop: 6, color: '#bbb', fontSize: 13, fontFamily: '__Nunito_85d4bb' }}>Dica: <b>clique</b> numa opção para enviar o chute.</div>
+            <div style={{ marginTop: 6, color: '#bbb', fontSize: 13 }}>Dica: <b>clique</b> numa opção para enviar o chute.</div>
           </div>
         )}
 
@@ -169,6 +194,7 @@ export default function Home() {
               creditLabelFont={creditLabelFont}
               creditLineFont={creditLineFont}
               creditLetter={creditLetter}
+              yearLine={yearLine} // novo
             />
           </div>
           <div style={rightCol}>
@@ -275,12 +301,43 @@ function CreditRow({
   );
 }
 
+function YearRow({
+  label,
+  value, // string pronto: "1975  >  ????  >  1990" ou "1975  >  1982  >  1990"
+  creditGridColumns,
+  creditLabelFont,
+  creditLineFont,
+  creditLetter,
+}: {
+  label: string;
+  value: string;
+  creditGridColumns: string;
+  creditLabelFont: number;
+  creditLineFont: number;
+  creditLetter: number;
+}) {
+  return (
+    <div style={{ ...creditRow, gridTemplateColumns: creditGridColumns }}>
+      <div style={{ ...creditLabel, fontSize: creditLabelFont }} className={oswald.className}>{label}</div>
+      <div style={creditLines}>
+        <div
+          style={{ ...creditLine, fontSize: creditLineFont, letterSpacing: creditLetter }}
+          className={bebas.className}
+        >
+          {value.trim() === '' ? '—' : value}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CreditsPanel({
   credits,
   creditGridColumns,
   creditLabelFont,
   creditLineFont,
   creditLetter,
+  yearLine, // novo
 }: {
   credits: {
     stars: string[];
@@ -297,6 +354,7 @@ function CreditsPanel({
   creditLabelFont: number;
   creditLineFont: number;
   creditLetter: number;
+  yearLine: string; // novo
 }) {
   return (
     <div>
@@ -305,7 +363,8 @@ function CreditsPanel({
       <CreditRow label="Roteiro"       lines={credits.writers}              creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
       <CreditRow label="Trilha sonora" lines={[]}                           creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
       <CreditRow label="Produção"      lines={credits.production_companies} creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Ano"           lines={credits.years}                creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      {/* Ano: linha especial com limites */}
+      <YearRow    label="Ano"          value={yearLine}                     creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
       <CreditRow label="País"          lines={credits.countries_origin}     creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
       <CreditRow label="Locações"      lines={credits.filming_locations}    creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
       <CreditRow label="Gênero"        lines={credits.genres}               creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
@@ -333,13 +392,12 @@ const page: React.CSSProperties = { minHeight: '100vh', background: '#000', colo
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0', padding: '0 20px' };
 
 const title: React.CSSProperties = {
-  
+  fontFamily: '"Nunito", sans-serif',
   fontWeight: 700,
-  fontSize: 38,
+  fontSize: 18,
   margin: 0,
   color: '#d9d9d9',
   textAlign: 'center',
-  textTransform: 'uppercase',
 };
 
 const subtitle: React.CSSProperties = {
@@ -352,7 +410,7 @@ const subtitle: React.CSSProperties = {
   margin: 0,
   textAlign: 'center',
   fontVariant: 'common-ligatures',
-  fontFamily: '__Nunito_85d4bb',
+  fontFamily: '"Oswald", sans-serif',
 };
 
 const attemptsBar: React.CSSProperties = {
@@ -369,14 +427,14 @@ const attemptsBar: React.CSSProperties = {
 };
 
 const input: React.CSSProperties = {
-  width: '100%', padding: '14px 16px', border: '2px solid #fff', background: '#111', color: '#fff',
-  borderRadius: 12, fontSize: 18, outline: 'none',fontFamily: '__Nunito_85d4bb',
+  width: '100%', padding: '14px 16px', border: '1px solid '#666', background: '#111', color: '#fff',
+  borderRadius: 12, fontSize: 18, outline: 'none',
 };
 const dropdown: React.CSSProperties = {
-  position: 'absolute', top: 52, left: 0, right: 0, background: '#0d0d0d', border: '1px solid #666',
+  position: 'absolute', top: 52, left: 0, right: 0, background: '#0d0d0d', border: '1px solid #333',
   borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.4)', zIndex: 10, maxHeight: 260, overflowY: 'auto',
 };
-const dropdownItem: React.CSSProperties = { padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #161616', display: 'flex', alignItems: 'center', fontFamily: '__Nunito_85d4bb' };
+const dropdownItem: React.CSSProperties = { padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #161616', display: 'flex', alignItems: 'center' };
 
 const twoCols: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24, marginTop: 24 };
 const leftCol: React.CSSProperties = { paddingTop: 8 };
@@ -416,10 +474,10 @@ const creditPlaceholder: React.CSSProperties = {
 /* Chutes */
 const pillRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10 };
 const statusBadge: React.CSSProperties = {
-  width: 28, height: 28, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontFamily: '__Nunito_85d4bb',
+  width: 28, height: 28, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800,
 };
 const pillLabel: React.CSSProperties = {
-  background: '#f4f4f4', color: '#111', borderRadius: 12, padding: '6px 12px', minHeight: 28, display: 'flex', alignItems: 'center',fontFamily: '__Nunito_85d4bb',
+  background: '#f4f4f4', color: '#111', borderRadius: 12, padding: '6px 12px', minHeight: 28, display: 'flex', alignItems: 'center',
 };
 
 const winBox: React.CSSProperties = {
