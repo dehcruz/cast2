@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Bebas_Neue, Oswald, Nunito } from 'next/font/google';
 
 // fontes
-const bebas = Bebas_Neue({ subsets: ['latin'], weight: '400' }); // nomes
-const oswald = Oswald({ subsets: ['latin'], weight: '400' });    // rótulos
+const bebas = Bebas_Neue({ subsets: ['latin'], weight: '400' }); // nomes mascarados/verdadeiros
+const oswald = Oswald({ subsets: ['latin'], weight: '400' });    // rótulos e subtítulo
 const nunito = Nunito({ subsets: ['latin'], weight: '700' });    // h1
 
 type SearchItem = { id: string; title: string; orig: string; year: number | null };
@@ -22,10 +22,22 @@ type GuessResult = {
   isCorrect: boolean;
   overlap: Overlap;
   film?: any;
-  yearRelation?: 'lt' | 'gt' | 'eq' | null; // novo
-  guessYear?: number | null;                // novo
+  yearRelation?: 'lt' | 'gt' | 'eq' | null;
+  guessYear?: number | null;
 };
 type GuessUI = { label: string; year?: number | null; result: GuessResult };
+
+/* util: mascara estilos "Xxxxx" mantendo espaços e pontuação */
+function maskText(text: string): string {
+  return text
+    .split('')
+    .map((ch) => {
+      if (/[A-ZÀ-ÖØ-Ý]/.test(ch)) return 'X';
+      if (/[a-zà-öø-ÿ]/.test(ch)) return 'x';
+      return ch;
+    })
+    .join('');
+}
 
 export default function Home() {
   const [query, setQuery] = useState('');
@@ -38,9 +50,9 @@ export default function Home() {
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [winningFilm, setWinningFilm] = useState<any>(null);
 
-  // limites de ano (inferencia)
-  const [yearLower, setYearLower] = useState<number | null>(null); // maior ano < ano do filme
-  const [yearUpper, setYearUpper] = useState<number | null>(null); // menor ano > ano do filme
+  // limites de ano
+  const [yearLower, setYearLower] = useState<number | null>(null); // maior < filme
+  const [yearUpper, setYearUpper] = useState<number | null>(null); // menor > filme
 
   const [isSmall, setIsSmall] = useState(false);
 
@@ -81,16 +93,12 @@ export default function Home() {
       const data: GuessResult = await res.json();
 
       setGuesses((prev) => {
-        // atualizar limites com base em yearRelation e guessYear
+        // atualizar limites de ano
         if (data.yearRelation && typeof data.guessYear === 'number') {
           if (data.yearRelation === 'lt') {
-            // lower é o maior ano < filme
             setYearLower((curr) => (curr == null ? data.guessYear! : Math.max(curr, data.guessYear!)));
           } else if (data.yearRelation === 'gt') {
-            // upper é o menor ano > filme
             setYearUpper((curr) => (curr == null ? data.guessYear! : Math.min(curr, data.guessYear!)));
-          } else if (data.yearRelation === 'eq') {
-            // acertou o ano: nada especial aqui; o centro mostrará o ano do overlap
           }
         }
 
@@ -156,6 +164,7 @@ export default function Home() {
           Chute um filme. Se não for o do dia, mostramos apenas o que ele tem <b>em comum</b>.
         </p>
 
+        {/* contador de tentativas */}
         <div style={attemptsBar} className={oswald.className}>
           Tentativas: <span style={{ fontWeight: 900, marginLeft: 6 }}>{guesses.length}</span>
         </div>
@@ -194,7 +203,7 @@ export default function Home() {
               creditLabelFont={creditLabelFont}
               creditLineFont={creditLineFont}
               creditLetter={creditLetter}
-              yearLine={yearLine} // novo
+              yearLine={yearLine}
             />
           </div>
           <div style={rightCol}>
@@ -303,7 +312,7 @@ function CreditRow({
 
 function YearRow({
   label,
-  value, // string pronto: "1975  >  ????  >  1990" ou "1975  >  1982  >  1990"
+  value, // "1975  >  ????  >  1990" ou "1975  >  1982  >  1990"
   creditGridColumns,
   creditLabelFont,
   creditLineFont,
@@ -331,13 +340,14 @@ function YearRow({
   );
 }
 
+/* gera linhas reais OU mascaradas quando vazio */
 function CreditsPanel({
   credits,
   creditGridColumns,
   creditLabelFont,
   creditLineFont,
   creditLetter,
-  yearLine, // novo
+  yearLine,
 }: {
   credits: {
     stars: string[];
@@ -354,21 +364,35 @@ function CreditsPanel({
   creditLabelFont: number;
   creditLineFont: number;
   creditLetter: number;
-  yearLine: string; // novo
+  yearLine: string;
 }) {
+  // placeholders só para gerar máscaras (NUNCA exibidos como nomes reais)
+  const masks = {
+    stars: ['Leonardo DiCaprio', 'Morgan Freeman', 'Tom Hanks'],
+    directors: ['Christopher Nolan', 'Steven Spielberg'],
+    writers: ['Quentin Tarantino', 'Aaron Sorkin'],
+    production_companies: ['Warner Bros.', 'Paramount Pictures', 'Universal Pictures'],
+    countries_origin: ['United States', 'United Kingdom', 'France'],
+    filming_locations: ['New York', 'Los Angeles', 'London'],
+    genres: ['Drama', 'Comedy', 'Action'],
+    languages: ['English', 'Spanish', 'French'],
+  };
+
+  const m = (arr: string[]) => arr.map(maskText);
+
+  const linesOrMask = (real: string[], ph: string[]) => (real.length > 0 ? real : m(ph));
+
   return (
     <div>
-      <CreditRow label="Elenco"        lines={credits.stars}                creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Diretor"       lines={credits.directors}            creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Roteiro"       lines={credits.writers}              creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Trilha sonora" lines={[]}                           creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Produção"      lines={credits.production_companies} creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      {/* Ano: linha especial com limites */}
-      <YearRow    label="Ano"          value={yearLine}                     creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="País"          lines={credits.countries_origin}     creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Locações"      lines={credits.filming_locations}    creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Gênero"        lines={credits.genres}               creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Idioma"        lines={credits.languages}            creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Elenco"        lines={linesOrMask(credits.stars,                masks.stars)}                creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Diretor"       lines={linesOrMask(credits.directors,            masks.directors)}            creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Roteiro"       lines={linesOrMask(credits.writers,              masks.writers)}              creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Produção"      lines={linesOrMask(credits.production_companies, masks.production_companies)} creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <YearRow   label="Ano"           value={yearLine}                                                                        creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="País"          lines={linesOrMask(credits.countries_origin,     masks.countries_origin)}     creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Locações"      lines={linesOrMask(credits.filming_locations,    masks.filming_locations)}    creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Gênero"        lines={linesOrMask(credits.genres,               masks.genres)}               creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Idioma"        lines={linesOrMask(credits.languages,            masks.languages)}            creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
     </div>
   );
 }
@@ -427,8 +451,14 @@ const attemptsBar: React.CSSProperties = {
 };
 
 const input: React.CSSProperties = {
-  width: '100%', padding: '14px 16px', border: '1px solid #666', background: '#111', color: '#fff',
-  borderRadius: 12, fontSize: 18, outline: 'none',
+  width: '100%',
+  padding: '14px 16px',
+  border: '1px solid #666',  // fix de aspas
+  background: '#111',
+  color: '#fff',
+  borderRadius: 12,
+  fontSize: 18,
+  outline: 'none',
 };
 const dropdown: React.CSSProperties = {
   position: 'absolute', top: 52, left: 0, right: 0, background: '#0d0d0d', border: '1px solid #333',
