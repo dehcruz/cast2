@@ -12,7 +12,15 @@ type Overlap = Partial<{
   languages: string[];
   release_year: number;
 }>;
-type GuessResponse = { isCorrect: boolean; overlap: Overlap; film?: any };
+
+type GuessResponse = {
+  isCorrect: boolean;
+  overlap: Overlap;
+  film?: any;
+  // novos campos para a lógica de ano
+  yearRelation?: 'lt' | 'gt' | 'eq' | null;
+  guessYear?: number | null;
+};
 
 function arr(x: any): string[] { return Array.isArray(x) ? x.map(String) : []; }
 function intersect(a: any, b: any): string[] {
@@ -43,11 +51,23 @@ export default function handler(req: NextApiRequest, res: NextApiResponse<GuessR
       const v = intersect((guess as any)[key], (secret as any)[key]);
       if (v.length) (overlap as any)[key] = v;
     }
-    if (guess.release_year && secret.release_year && guess.release_year === secret.release_year) {
-      overlap.release_year = guess.release_year;
+
+    // comparação de ano (sem revelar o ano do filme do dia)
+    let yearRelation: 'lt' | 'gt' | 'eq' | null = null;
+    const gY = typeof guess.release_year === 'number' ? guess.release_year : null;
+    const sY = typeof secret.release_year === 'number' ? secret.release_year : null;
+    if (gY != null && sY != null) {
+      if (gY === sY) {
+        overlap.release_year = gY; // mostra ano apenas quando é igual (coerente com suas regras)
+        yearRelation = 'eq';
+      } else if (gY < sY) {
+        yearRelation = 'lt';
+      } else {
+        yearRelation = 'gt';
+      }
     }
 
-    const resp: GuessResponse = { isCorrect, overlap };
+    const resp: GuessResponse = { isCorrect, overlap, yearRelation, guessYear: gY };
     if (isCorrect) resp.film = secret;
     res.status(200).json(resp);
   } catch (e:any) {
