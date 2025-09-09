@@ -59,6 +59,24 @@ function keyify(s: string): string {
     .replace(/\s+/g, '-');
 }
 
+// --- Componente usado na coluna da direita (lista de chutes)
+function GuessPill({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <div style={pillRow}>
+      <div
+        style={{
+          ...statusBadge,
+          background: ok ? '#cfe8d9' : '#f5d0d0',
+          color: ok ? '#2f6b45' : '#7a2020',
+        }}
+      >
+        {ok ? 'V' : 'X'}
+      </div>
+      <div style={pillLabel}>{label}</div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SearchItem[]>([]);
