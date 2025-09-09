@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Bebas_Neue, Oswald, Nunito } from 'next/font/google';
 
 // fontes
-const bebas = Bebas_Neue({ subsets: ['latin'], weight: '400' }); // nomes mascarados/verdadeiros
+const bebas = Bebas_Neue({ subsets: ['latin'], weight: '400' }); // nomes (mascarados e revelados)
 const oswald = Oswald({ subsets: ['latin'], weight: '400' });    // rótulos e subtítulo
 const nunito = Nunito({ subsets: ['latin'], weight: '700' });    // h1
 
 type SearchItem = { id: string; title: string; orig: string; year: number | null };
+
 type Overlap = Partial<{
   stars: string[];
   directors: string[];
@@ -18,6 +19,7 @@ type Overlap = Partial<{
   languages: string[];
   release_year: number;
 }>;
+
 type GuessResult = {
   isCorrect: boolean;
   overlap: Overlap;
@@ -27,16 +29,34 @@ type GuessResult = {
 };
 type GuessUI = { label: string; year?: number | null; result: GuessResult };
 
-/* util: mascara estilos "Xxxxx" mantendo espaços e pontuação */
+// ===== máscaras =====
+type MaskItem = { key: string; mask: string; revealed?: boolean; text?: string };
+type MaskedCredits = {
+  stars: MaskItem[];
+  directors: MaskItem[];
+  writers: MaskItem[];
+  production_companies: MaskItem[];
+  countries_origin: MaskItem[];
+  filming_locations: MaskItem[];
+  genres: MaskItem[];
+  languages: MaskItem[];
+};
+
 function maskText(text: string): string {
-  return text
-    .split('')
-    .map((ch) => {
-      if (/[A-ZÀ-ÖØ-Ý]/.test(ch)) return 'X';
-      if (/[a-zà-öø-ÿ]/.test(ch)) return 'x';
-      return ch;
-    })
-    .join('');
+  return text.split('').map(ch => {
+    if (/[A-ZÀ-ÖØ-Ý]/.test(ch)) return 'X';
+    if (/[a-zà-öø-ÿ]/.test(ch)) return 'x';
+    return ch;
+  }).join('');
+}
+
+function keyify(s: string): string {
+  return s
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, '-');
 }
 
 export default function Home() {
@@ -51,8 +71,11 @@ export default function Home() {
   const [winningFilm, setWinningFilm] = useState<any>(null);
 
   // limites de ano
-  const [yearLower, setYearLower] = useState<number | null>(null); // maior < filme
-  const [yearUpper, setYearUpper] = useState<number | null>(null); // menor > filme
+  const [yearLower, setYearLower] = useState<number | null>(null);
+  const [yearUpper, setYearUpper] = useState<number | null>(null);
+
+  // listas mascaradas oficiais do "filme do dia"
+  const [masked, setMasked] = useState<MaskedCredits | null>(null);
 
   const [isSmall, setIsSmall] = useState(false);
 
@@ -64,6 +87,26 @@ export default function Home() {
     return () => mq?.removeEventListener('change', apply);
   }, []);
 
+  // carrega as máscaras do filme do dia
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/masked');
+        if (!res.ok) throw new Error('masked http ' + res.status);
+        const data = await res.json();
+        setMasked(data);
+      } catch (e) {
+        console.error('masked load error', e);
+        // fallback mínimo (evita tela vazia)
+        setMasked({
+          stars: [], directors: [], writers: [], production_companies: [],
+          countries_origin: [], filming_locations: [], genres: [], languages: [],
+        });
+      }
+    })();
+  }, []);
+
+  // auto-complete
   useEffect(() => {
     const t = setTimeout(async () => {
       if (!query) { setSuggestions([]); return; }
@@ -80,6 +123,18 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [query]);
 
+  // revela itens nas máscaras por categoria
+  function reveal(category: keyof MaskedCredits, realText: string) {
+    const k = keyify(realText);
+    setMasked(prev => {
+      if (!prev) return prev;
+      const arr = prev[category].map(it =>
+        it.key === k ? { ...it, revealed: true, text: realText } : it
+      );
+      return { ...prev, [category]: arr };
+    });
+  }
+
   async function submitGuess(item: SearchItem) {
     setQuery('');
     setSuggestions([]);
@@ -92,19 +147,30 @@ export default function Home() {
       if (!res.ok) throw new Error('guess http ' + res.status);
       const data: GuessResult = await res.json();
 
-      setGuesses((prev) => {
-        // atualizar limites de ano
-        if (data.yearRelation && typeof data.guessYear === 'number') {
-          if (data.yearRelation === 'lt') {
-            setYearLower((curr) => (curr == null ? data.guessYear! : Math.max(curr, data.guessYear!)));
-          } else if (data.yearRelation === 'gt') {
-            setYearUpper((curr) => (curr == null ? data.guessYear! : Math.min(curr, data.guessYear!)));
-          }
-        }
+      // processa overlaps para revelar só os itens correspondentes
+      const ov = data.overlap || {};
+      (ov.stars || []).forEach(s => reveal('stars', s));
+      (ov.directors || []).forEach(s => reveal('directors', s));
+      (ov.writers || []).forEach(s => reveal('writers', s));
+      (ov.production_companies || []).forEach(s => reveal('production_companies', s));
+      (ov.countries_origin || []).forEach(s => reveal('countries_origin', s));
+      (ov.filming_locations || []).forEach(s => reveal('filming_locations', s));
+      (ov.genres || []).forEach(s => reveal('genres', s));
+      (ov.languages || []).forEach(s => reveal('languages', s));
 
+      // limites de ano
+      if (data.yearRelation && typeof data.guessYear === 'number') {
+        if (data.yearRelation === 'lt') {
+          setYearLower(curr => (curr == null ? data.guessYear! : Math.max(curr, data.guessYear!)));
+        } else if (data.yearRelation === 'gt') {
+          setYearUpper(curr => (curr == null ? data.guessYear! : Math.min(curr, data.guessYear!)));
+        }
+      }
+
+      // registra chute e acerto
+      setGuesses(prev => {
         const wrapped: GuessUI = { label: item.title, year: item.year, result: data };
         const next = [wrapped, ...prev];
-
         if (data.isCorrect && !won) {
           setAttempts(prev.length + 1);
           setWinningFilm(data.film ?? null);
@@ -120,36 +186,36 @@ export default function Home() {
     }
   }
 
-  // agrega créditos em comum
-  const credits = useMemo(() => {
-    const addAll = (src?: string[], dest?: Set<string>) => { if (!src || !dest) return; for (const v of src) dest.add(v); };
-    const stars = new Set<string>(), directors = new Set<string>(), writers = new Set<string>(),
-      prod = new Set<string>(), countries = new Set<string>(), locs = new Set<string>(),
-      genres = new Set<string>(), langs = new Set<string>(), years = new Set<string>();
+  // agrega "ano exato" (aparece no centro apenas quando acertar o ano)
+  const creditsYearExact = useMemo(() => {
     for (const g of guesses) {
-      const o = g.result?.overlap || {};
-      addAll(o.stars, stars); addAll(o.directors, directors); addAll(o.writers, writers);
-      addAll(o.production_companies, prod); addAll(o.countries_origin, countries);
-      addAll(o.filming_locations, locs); addAll(o.genres, genres); addAll(o.languages, langs);
-      if (typeof o.release_year === 'number') years.add(String(o.release_year));
+      if (typeof g.result?.overlap?.release_year === 'number') {
+        return String(g.result.overlap.release_year);
+      }
     }
-    return {
-      stars: Array.from(stars),
-      directors: Array.from(directors),
-      writers: Array.from(writers),
-      production_companies: Array.from(prod),
-      countries_origin: Array.from(countries),
-      filming_locations: Array.from(locs),
-      genres: Array.from(genres),
-      languages: Array.from(langs),
-      years: Array.from(years),
-    };
+    return null;
   }, [guesses]);
 
-  // derivar texto do "Ano" com limites
-  const hasExactYear = credits.years.length > 0;
-  const centerYear = hasExactYear ? credits.years[0] : '????';
-  const yearLine = `${yearLower != null ? yearLower : ''}${yearLower != null ? '  >  ' : ''}${centerYear}${yearUpper != null ? '  >  ' : ''}${yearUpper != null ? yearUpper : ''}`;
+  const centerYear = creditsYearExact ?? '????';
+  const yearLine =
+    `${yearLower != null ? yearLower : ''}${yearLower != null ? '  >  ' : ''}` +
+    `${centerYear}` +
+    `${yearUpper != null ? '  >  ' : ''}${yearUpper != null ? yearUpper : ''}`;
+
+  // converte mascaradas -> linhas de exibição (revelada ou máscara)
+  const display = useMemo(() => {
+    const show = (arr?: MaskItem[]) => (arr || []).map(it => (it.revealed && it.text ? it.text : it.mask));
+    return {
+      stars: show(masked?.stars),
+      directors: show(masked?.directors),
+      writers: show(masked?.writers),
+      production_companies: show(masked?.production_companies),
+      countries_origin: show(masked?.countries_origin),
+      filming_locations: show(masked?.filming_locations),
+      genres: show(masked?.genres),
+      languages: show(masked?.languages),
+    };
+  }, [masked]);
 
   const creditGridColumns = isSmall ? '110px 1fr' : '160px 1fr';
   const creditLabelFont = isSmall ? 16 : 20;
@@ -164,7 +230,6 @@ export default function Home() {
           Chute um filme. Se não for o do dia, mostramos apenas o que ele tem <b>em comum</b>.
         </p>
 
-        {/* contador de tentativas */}
         <div style={attemptsBar} className={oswald.className}>
           Tentativas: <span style={{ fontWeight: 900, marginLeft: 6 }}>{guesses.length}</span>
         </div>
@@ -198,7 +263,7 @@ export default function Home() {
         <div style={twoCols}>
           <div style={leftCol}>
             <CreditsPanel
-              credits={credits}
+              credits={display}
               creditGridColumns={creditGridColumns}
               creditLabelFont={creditLabelFont}
               creditLineFont={creditLineFont}
@@ -224,14 +289,14 @@ export default function Home() {
         )}
 
         <footer style={footer}>
-          Fonte: <code>movies.json</code> com títulos pt-br (IMDb AKAs). Layout: créditos à esquerda, chutes à direita.
+          Fonte: <code>movies.json</code> (títulos pt-br via AKAs). Layout: créditos à esquerda, chutes à direita.
         </footer>
       </div>
     </div>
   );
 }
 
-/* ====== Modal ====== */
+/* ===== Modal ===== */
 
 function WinModal({
   attempts,
@@ -267,7 +332,7 @@ function WinModal({
   );
 }
 
-/* ====== Créditos estilo “filme” ====== */
+/* ===== Créditos ===== */
 
 function CreditRow({
   label,
@@ -292,11 +357,7 @@ function CreditRow({
           lines.map((t, i) => (
             <div
               key={i}
-              style={{
-                ...creditLine,
-                fontSize: creditLineFont,
-                letterSpacing: creditLetter,
-              }}
+              style={{ ...creditLine, fontSize: creditLineFont, letterSpacing: creditLetter }}
               className={bebas.className}
             >
               {t}
@@ -312,7 +373,7 @@ function CreditRow({
 
 function YearRow({
   label,
-  value, // "1975  >  ????  >  1990" ou "1975  >  1982  >  1990"
+  value,
   creditGridColumns,
   creditLabelFont,
   creditLineFont,
@@ -340,7 +401,6 @@ function YearRow({
   );
 }
 
-/* gera linhas reais OU mascaradas quando vazio */
 function CreditsPanel({
   credits,
   creditGridColumns,
@@ -358,7 +418,6 @@ function CreditsPanel({
     filming_locations: string[];
     genres: string[];
     languages: string[];
-    years: string[];
   };
   creditGridColumns: string;
   creditLabelFont: number;
@@ -366,51 +425,22 @@ function CreditsPanel({
   creditLetter: number;
   yearLine: string;
 }) {
-  // placeholders só para gerar máscaras (NUNCA exibidos como nomes reais)
-  const masks = {
-    stars: ['Leonardo DiCaprio', 'Morgan Freeman', 'Tom Hanks'],
-    directors: ['Christopher Nolan', 'Steven Spielberg'],
-    writers: ['Quentin Tarantino', 'Aaron Sorkin'],
-    production_companies: ['Warner Bros.', 'Paramount Pictures', 'Universal Pictures'],
-    countries_origin: ['United States', 'United Kingdom', 'France'],
-    filming_locations: ['New York', 'Los Angeles', 'London'],
-    genres: ['Drama', 'Comedy', 'Action'],
-    languages: ['English', 'Spanish', 'French'],
-  };
-
-  const m = (arr: string[]) => arr.map(maskText);
-
-  const linesOrMask = (real: string[], ph: string[]) => (real.length > 0 ? real : m(ph));
-
   return (
     <div>
-      <CreditRow label="Elenco"        lines={linesOrMask(credits.stars,                masks.stars)}                creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Diretor"       lines={linesOrMask(credits.directors,            masks.directors)}            creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Roteiro"       lines={linesOrMask(credits.writers,              masks.writers)}              creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Produção"      lines={linesOrMask(credits.production_companies, masks.production_companies)} creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <YearRow   label="Ano"           value={yearLine}                                                                        creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="País"          lines={linesOrMask(credits.countries_origin,     masks.countries_origin)}     creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Locações"      lines={linesOrMask(credits.filming_locations,    masks.filming_locations)}    creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Gênero"        lines={linesOrMask(credits.genres,               masks.genres)}               creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
-      <CreditRow label="Idioma"        lines={linesOrMask(credits.languages,            masks.languages)}            creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Elenco"        lines={credits.stars}                creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Diretor"       lines={credits.directors}            creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Roteiro"       lines={credits.writers}              creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Produção"      lines={credits.production_companies} creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <YearRow   label="Ano"           value={yearLine}                     creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="País"          lines={credits.countries_origin}     creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Locações"      lines={credits.filming_locations}    creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Gênero"        lines={credits.genres}               creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
+      <CreditRow label="Idioma"        lines={credits.languages}            creditGridColumns={creditGridColumns} creditLabelFont={creditLabelFont} creditLineFont={creditLineFont} creditLetter={creditLetter} />
     </div>
   );
 }
 
-/* ====== Lista de chutes ====== */
-
-function GuessPill({ label, ok }: { label: string; ok: boolean }) {
-  return (
-    <div style={pillRow}>
-      <div style={{ ...statusBadge, background: ok ? '#cfe8d9' : '#f5d0d0', color: ok ? '#2f6b45' : '#7a2020' }}>
-        {ok ? 'V' : 'X'}
-      </div>
-      <div style={pillLabel}>{label}</div>
-    </div>
-  );
-}
-
-/* ====== Estilos base ====== */
+/* ===== Estilos base ===== */
 
 const page: React.CSSProperties = { minHeight: '100vh', background: '#000', color: '#fff' };
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0', padding: '0 20px' };
@@ -451,14 +481,8 @@ const attemptsBar: React.CSSProperties = {
 };
 
 const input: React.CSSProperties = {
-  width: '100%',
-  padding: '14px 16px',
-  border: '1px solid #666',  // fix de aspas
-  background: '#111',
-  color: '#fff',
-  borderRadius: 12,
-  fontSize: 18,
-  outline: 'none',
+  width: '100%', padding: '14px 16px', border: '1px solid #666', background: '#111', color: '#fff',
+  borderRadius: 12, fontSize: 18, outline: 'none',
 };
 const dropdown: React.CSSProperties = {
   position: 'absolute', top: 52, left: 0, right: 0, background: '#0d0d0d', border: '1px solid #333',
@@ -470,7 +494,7 @@ const twoCols: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1.
 const leftCol: React.CSSProperties = { paddingTop: 8 };
 const rightCol: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 8 };
 
-/* Créditos “cinema” */
+/* Créditos */
 const creditRow: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '160px 1fr',
@@ -515,7 +539,7 @@ const winBox: React.CSSProperties = {
 };
 const footer: React.CSSProperties = { marginTop: 40, color: '#aaa', fontSize: 13 };
 
-/* Modal styles */
+/* Modal */
 const modalOverlay: React.CSSProperties = {
   position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
